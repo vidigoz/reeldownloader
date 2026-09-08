@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>bajador de reels</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e120f;
+    --panel: #161b17;
+    --panel-border: #262e28;
+    --text: #e6e9e1;
+    --muted: #7c8a7d;
+    --accent: #7fd858;
+    --accent-dim: #4f7a3d;
+    --error: #d97757ff; /* overridden below to avoid clay tell */
+    --error: #e0654a;
+    --radius: 4px;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    min-height: 100vh;
+  }
+
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .crt {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.015) 0px,
+      rgba(255, 255, 255, 0.015) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+    z-index: 1;
+  }
+
+  .window {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    max-width: 480px;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.4), 0 20px 60px rgba(0,0,0,0.5);
+  }
+
+  .titlebar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: #12160f;
+    border-bottom: 1px solid var(--panel-border);
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #3a423a;
+  }
+
+  .titlebar span.name {
+    margin-left: 4px;
+  }
+
+  .body {
+    padding: 28px 24px 24px;
+  }
+
+  h1 {
+    font-size: 16px;
+    font-weight: 700;
+    margin: 0 0 4px;
+    letter-spacing: 0.2px;
+  }
+
+  h1 .prompt {
+    color: var(--accent);
+  }
+
+  p.sub {
+    margin: 0 0 22px;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  label {
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  input[type="url"] {
+    width: 100%;
+    background: #0b0f0c;
+    border: 1px solid var(--panel-border);
+    border-radius: var(--radius);
+    padding: 11px 12px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.15s ease;
+  }
+
+  input[type="url"]:focus {
+    border-color: var(--accent-dim);
+  }
+
+  input[type="url"]::placeholder {
+    color: #4a5249;
+  }
+
+  button {
+    margin-top: 4px;
+    background: var(--accent);
+    color: #0e120f;
+    border: none;
+    border-radius: var(--radius);
+    padding: 11px 12px;
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    transition: filter 0.15s ease, transform 0.05s ease;
+  }
+
+  button:hover { filter: brightness(1.08); }
+  button:active { transform: scale(0.99); }
+
+  button:disabled {
+    background: #33392f;
+    color: var(--muted);
+    cursor: not-allowed;
+  }
+
+  .log {
+    margin-top: 18px;
+    font-size: 12px;
+    line-height: 1.7;
+    color: var(--muted);
+    min-height: 20px;
+  }
+
+  .log .line {
+    display: flex;
+    gap: 8px;
+  }
+
+  .log .line .arrow {
+    color: var(--accent-dim);
+    flex-shrink: 0;
+  }
+
+  .log .err {
+    color: var(--error);
+  }
+
+  .log .err .arrow {
+    color: var(--error);
+  }
+
+  .result {
+    margin-top: 18px;
+    display: none;
+    border-top: 1px dashed var(--panel-border);
+    padding-top: 18px;
+  }
+
+  .result.show { display: block; }
+
+  .result .thumb {
+    width: 100%;
+    max-height: 220px;
+    object-fit: cover;
+    border-radius: var(--radius);
+    border: 1px solid var(--panel-border);
+    margin-bottom: 12px;
+    display: none;
+  }
+
+  .result .caption {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 12px;
+    line-height: 1.5;
+    max-height: 60px;
+    overflow: hidden;
+  }
+
+  .result a.download {
+    display: block;
+    text-align: center;
+    text-decoration: none;
+    background: transparent;
+    border: 1px solid var(--accent-dim);
+    color: var(--accent);
+    padding: 11px 12px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    font-weight: 700;
+    transition: background 0.15s ease;
+  }
+
+  .result a.download:hover {
+    background: rgba(127, 216, 88, 0.08);
+  }
+
+  .hint {
+    margin-top: 10px;
+    font-size: 11px;
+    color: #55604f;
+    line-height: 1.5;
+  }
+
+  .spin {
+    display: inline-block;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+</style>
+</head>
+<body>
+  <div class="crt"></div>
+  <div class="window">
+    <div class="titlebar">
+      <div class="dot"></div>
+      <div class="dot"></div>
+      <div class="dot"></div>
+      <span class="name">reels.sh — bash — 80x24</span>
+    </div>
+    <div class="body">
+      <h1><span class="prompt">$</span> bajar-reel</h1>
+      <p class="sub">Pega el link de un reel público. Se extrae el archivo original, sin marca de agua ni anuncios.</p>
+
+      <form id="form">
+        <label for="url">url</label>
+        <input type="url" id="url" name="url" placeholder="https://www.instagram.com/reel/..." required autocomplete="off" />
+        <button type="submit" id="btn">Descargar</button>
+      </form>
+
+      <div class="log" id="log"></div>
+
+      <div class="result" id="result">
+        <img class="thumb" id="thumb" alt="" />
+        <div class="caption" id="caption"></div>
+        <a class="download" id="downloadLink" target="_blank" rel="noopener">Guardar video</a>
+        <div class="hint">Si el video se abre en vez de descargarse, usa clic derecho → "Guardar video como…"</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('form');
+    const btn = document.getElementById('btn');
+    const log = document.getElementById('log');
+    const result = document.getElementById('result');
+    const thumb = document.getElementById('thumb');
+    const caption = document.getElementById('caption');
+    const downloadLink = document.getElementById('downloadLink');
+
+    function writeLog(lines) {
+      log.innerHTML = lines
+        .map(
+          (l) =>
+            `<div class="line ${l.err ? 'err' : ''}"><span class="arrow">></span><span>${l.text}</span></div>`
+        )
+        .join('');
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const url = document.getElementById('url').value.trim();
+      result.classList.remove('show');
+
+      if (!/instagram\.com\//.test(url)) {
+        writeLog([{ text: 'ese link no parece de instagram.com', err: true }]);
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Descargar';
+      writeLog([{ text: '<span class="spin">◒</span> buscando el video...' }]);
+
+      try {
+        const res = await fetch('/api/download?url=' + encodeURIComponent(url));
+        const data = await res.json();
+
+        if (!res.ok || data.error) {
+          writeLog([{ text: data.error || 'algo falló', err: true }]);
+          btn.disabled = false;
+          return;
+        }
+
+        writeLog([{ text: 'listo — video encontrado' }]);
+
+        if (data.thumbnail) {
+          thumb.src = data.thumbnail;
+          thumb.style.display = 'block';
+        } else {
+          thumb.style.display = 'none';
+        }
+
+        caption.textContent = data.title || '';
+        downloadLink.href = data.videoUrl;
+        downloadLink.setAttribute('download', 'reel.mp4');
+        result.classList.add('show');
+      } catch (err) {
+        writeLog([{ text: 'error de red: ' + err.message, err: true }]);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
